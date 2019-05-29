@@ -136,9 +136,12 @@ class ISSGPR(object):
             torch.Tensor or tuple: A single tensor containing all the GP hyper-parameters in the same order as set_hyperparameters() or a tuple with all GP hyper-paramters, except the mean parameters, followed by mean parameters in separate.
         """
         mean_params = self.mean_function.get_parameters()
+        basic_params = torch.stack((self._lengthscale,self.signal_stddev,self.noise_stddev))
         if isinstance(mean_params,torch.Tensor):
-            return torch.stack((self._lengthscale,self.signal_stddev,self.noise_stddev,self.mean_function.get_parameters()))
-        return torch.stack((self._lengthscale,self.signal_stddev,self.noise_stddev)), self.mean_function.get_parameters()
+            return torch.stack((basic_params,mean_params))
+        if mean_params is not None:
+            return basic_params, mean_params
+        return basic_params
         
     def clear_data(self):
         """
