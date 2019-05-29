@@ -1,5 +1,4 @@
 import math
-import typing
 import torch
 import ghalton as gh
 from . import ff_frequencies
@@ -7,7 +6,7 @@ from . import mean_functions
 from . import util
 
 
-def cos_sin(X: torch.tensor, S: torch.tensor) -> torch.tensor:
+def cos_sin(X, S):
     """
        Computes cosine-sine random Fourier features
        :param X: (N,D) inputs
@@ -30,14 +29,14 @@ class ISSGPR(object):
                        "matern3": ff_frequencies.matern_32,
                        "matern5": ff_frequencies.matern_52}
     def __init__(self,
-                 n_frequencies: int,
-                 dim: int,
-                 kernel_type: str = list(kernel_samplers.keys())[0],
-                 noise_stddev: float = 1e-4,
-                 lengthscale: float = 1.,
-                 signal_stddev: float = 1.,
-                 mean: mean_functions.AbstractMeanFunction = mean_functions.ZeroMean()
-                ) -> None:
+                 n_frequencies,
+                 dim,
+                 kernel_type = list(kernel_samplers.keys())[0],
+                 noise_stddev = 1e-4,
+                 lengthscale = 1.,
+                 signal_stddev = 1.,
+                 mean_function = None
+                ):
         super(ISSGPR,self).__init__()
         self.dtype = torch.float32
 
@@ -55,7 +54,10 @@ class ISSGPR(object):
         self.clear_data()
         self.X = None
         self.Y = None
-        self.mean_function = mean
+        if mean_function is None:
+            mean_function = mean_functions.ZeroMean()
+        self.mean_function = mean_function
+
         
     def get_dimensionality(self):
         return self.dim
