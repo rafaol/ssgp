@@ -1,2 +1,2 @@
-# ssgpr
-Sparse spectrum Gaussian process regression
+# ssgp
+A project implementing sparse spectrum Gaussian process regression
