@@ -30,7 +30,7 @@ class ISSGPR(object):
                        "matern3": ff_frequencies.matern_32,
                        "matern5": ff_frequencies.matern_52}
     def __init__(self,
-                 n_components: int,
+                 n_frequencies: int,
                  dim: int,
                  kernel_type: str = list(kernel_samplers.keys())[0],
                  noise_stddev: float = 1e-4,
@@ -42,12 +42,12 @@ class ISSGPR(object):
         self.dtype = torch.float32
 
         self.dim = dim
-        self.n_components = n_components
+        self.n_frequencies = n_frequencies
         self.noise_stddev = torch.as_tensor(noise_stddev)
         
         perm = gh.EA_PERMS[:dim]
         self.sequencer = gh.GeneralizedHalton(perm)
-        base_freqs = util.ensure_torch(self.sequencer.get(int(n_components)))
+        base_freqs = util.ensure_torch(self.sequencer.get(int(n_frequencies)))
         
         self.raw_spec = ISSGPR.kernel_samplers[kernel_type](base_freqs)
         self._set_lengthscale(lengthscale)
@@ -91,8 +91,8 @@ class ISSGPR(object):
         return torch.stack((self._lengthscale,self.signal_stddev,self.noise_stddev,self.mean_function.get_parameters()))
         
     def clear_data(self):
-        self.training_mat = (self.noise_stddev/self.signal_stddev)*torch.eye(self.n_components*2) # Cholesky
-        self.training_vec = torch.zeros((self.n_components*2,1))
+        self.training_mat = (self.noise_stddev/self.signal_stddev)*torch.eye(self.n_frequencies*2) # Cholesky
+        self.training_vec = torch.zeros((self.n_frequencies*2,1))
         self._update_weights()
 
     def feature_transform(self,X):
