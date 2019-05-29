@@ -9,7 +9,7 @@ with open('LICENSE') as f:
 
 setuptools.setup(
     name="ssgp",
-    version="0.0.1",
+    version="0.1.0",
     author="Rafael Oliveira",
     author_email="rafael.oliveira@sydney.edu.au",
     description="An implementation of sparse spectrum Gaussian processes",
