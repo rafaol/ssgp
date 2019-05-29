@@ -35,7 +35,7 @@ class ISSGPR(object):
                  n_frequencies,
                  dim,
                  kernel_type = list(kernel_samplers.keys())[0],
-                 noise_stddev = 1e-4,
+                 noise_stddev = 1e-2,
                  lengthscale = 1.,
                  signal_stddev = 1.,
                  mean_function = None
@@ -224,6 +224,8 @@ class ISSGPR(object):
             Y_all (torch.Tensor): A N-by-1 matrix of observation values
         """
         assert Y_all.dim() == 2 and X_all.dim() == 2, "Invalid data tensor dimensions. Both X and Y should be matrices."
+        assert X_all.size(1) == self.get_dimensionality(), "Input data dimensionality does not match model's setting"
+
         features = self.feature_transform(X_all)
         self.training_vec = torch.matmul(features,(Y_all-self.mean_function(X_all)))
         mat_A = torch.matmul(features,features.t())+(self.noise_stddev**2)*torch.eye(features.size(0))
@@ -232,15 +234,21 @@ class ISSGPR(object):
         self.X = X_all
         self.Y = Y_all
         
-    def evaluate_nlml(self,lengthscale,signal_stddev=None,noise_stddev=None,mean_params=None,X=None,Y=None,enforce_constraints=False,verbose=False):
+    def evaluate_nlml(self,lengthscale,signal_stddev=None,noise_stddev=None,mean_params=None,X=None,Y=None,enforce_constraints=False):
         """
-        Computes the negative log marginal likelihood of the model's hyper-parameters with respect to the data
+        Computes the negative log marginal likelihood (NLML) of the model's hyper-parameters with respect to the data
         
         Parameters:
             lengthscale (float or torch.Tensor): Length-scale of the GP kernel.
             signal_stddev (float or torch.Tensor): Signal standard deviation, i.e. a multiplicative scaling factor for the feature maps. If None, current value is used. (default: None)
             noise_stddev (float or torch.Tensor): Standard deviation for the Gaussian observation noise model. If None, current value is used. (default: None)
             mean_params: Parameters passed on to the mean function. If None, current value is used. (default: None)
+            X (torch.Tensor): Data points to evaluate the NLML on. If None, uses model's dataset. (default: None)
+            Y (torch.Tensor): Observation values corresponding to points in X. If None, uses model's dataset. (default: None)
+            enforce_constraints (bool): Whether or not to enforce positivity constraints on the first three parameters. (default: False)
+
+        Returns:
+            torch.Tensor: Scalar corresponding to NLML value
         """
         if signal_stddev is None:
             signal_stddev = self.signal_stddev
@@ -258,9 +266,6 @@ class ISSGPR(object):
             signal_stddev = util.ensure_positive(signal_stddev)
             noise_stddev = util.ensure_positive(noise_stddev)
             
-        if verbose:
-            print("evaluate_nlml:",lengthscale,signal_stddev,noise_stddev,mean_params)
-
         n_freqs = self.raw_spec.shape[0]
         n_data = Y.shape[0]
         features = signal_stddev*cos_sin(X,self.raw_spec/lengthscale)
