@@ -8,14 +8,17 @@ from . import util
 
 def cos_sin(X, S):
     """
-       Computes cosine-sine random Fourier features
-       :param X: (N,D) inputs
-       :param S: (M,D) frequencies
-       :return: M-by-N matrix of features for each input
+       Computes cosine-sine Fourier features
+       
+       Parameters:
+           X (torch.Tensor): N-by-D inputs
+           S (torch.Tensor): m-by-D frequencies
+       Returns:
+           torch.Tensor: M-by-N matrix of features for the inputs, M=2m.
     """
-    M, D = S.shape
+    m, D = S.shape
     dot_products = torch.mm(S,X.t())
-    return torch.cat((torch.cos(dot_products), torch.sin(dot_products))) / math.sqrt(M)
+    return torch.cat((torch.cos(dot_products), torch.sin(dot_products))) / math.sqrt(m)
 
 
 class ISSGPR(object):
@@ -37,6 +40,18 @@ class ISSGPR(object):
                  signal_stddev = 1.,
                  mean_function = None
                 ):
+        """
+        Constructor.
+        
+        Parameters:
+            n_frequencies (int): Number of Fourier frequencies to generate
+            dim (int): Dimensionality of the input domain
+            kernel_type (str): String specifying which kernel to use (default: 'squared_exponential')
+            noise_stddev (float or torch.Tensor): Standard deviation for the Gaussian observation noise model (default: 1e-4)
+            lengthscale (float or torch.Tensor): Length-scale of the GP kernel (default: 1.0)
+            signal_stddev (float or torch.Tensor): Signal standard deviation, i.e. a multiplicative scaling factor for the feature maps (default: 1.0)
+            mean_function (ssgp.mean_functions.AbstractMeanFunction): GP prior mean function. If None, a zero-mean prior is used. (default: None)
+        """
         super(ISSGPR,self).__init__()
         self.dtype = torch.float32
 
@@ -60,22 +75,46 @@ class ISSGPR(object):
 
         
     def get_dimensionality(self):
+        """
+        Retrieves inputs domain dimesionality set with the constructor.
+        """
         return self.dim
     
     def _set_lengthscale(self,value):
+        """
+        Method used to internally set the kernel length-scale value. Not to be used directly externally.
+        """
         self._lengthscale = util.ensure_torch(value)
         self.spec = self.raw_spec/self._lengthscale
         
     def get_lengthscale(self):
+        """
+        Retrieves the kernel length-scale.
+        """
         return self._lengthscale
         
     def _set_noise_stddev(self,value):
+        """
+        Method used to internally set the observation noise model standard deviation. Not to be used directly externally.
+        """
         self.noise_stddev = util.ensure_torch(value)
         
     def _set_signal_stddev(self,value):
+        """
+        Method used to internally set the kernel signal standard deviation value. Not to be used directly externally.
+        """
         self.signal_stddev = util.ensure_torch(value)
         
     def set_hyperparameters(self,lengthscale,signal_stddev=None,noise_stddev=None,mean_params=None):
+        """
+        Method to set or update GP hyper-parameters.
+        
+        Parameters:
+            lengthscale (float or torch.Tensor): Length-scale of the GP kernel.
+            signal_stddev (float or torch.Tensor): Signal standard deviation, i.e. a multiplicative scaling factor for the feature maps. If None, current value is kept. (default: None)
+            noise_stddev (float or torch.Tensor): Standard deviation for the Gaussian observation noise model. If None, current value is kept. (default: None)
+            mean_params: Parameters passed on to the mean function. If None, current value is kept. (default: None)
+        """
         self._set_lengthscale(lengthscale)
         if signal_stddev is not None:
             self._set_signal_stddev(signal_stddev)
@@ -90,20 +129,55 @@ class ISSGPR(object):
             self.set_data(self.X,self.Y) # recomputes internals
             
     def get_hyperparameters(self):
-        return torch.stack((self._lengthscale,self.signal_stddev,self.noise_stddev,self.mean_function.get_parameters()))
+        """
+        Method to retrieve GP hyper-parameters.
+        
+        Returns:
+            torch.Tensor or tuple: A single tensor containing all the GP hyper-parameters in the same order as set_hyperparameters() or a tuple with all GP hyper-paramters, except the mean parameters, followed by mean parameters in separate.
+        """
+        mean_params = self.mean_function.get_parameters()
+        if isinstance(mean_params,torch.Tensor):
+            return torch.stack((self._lengthscale,self.signal_stddev,self.noise_stddev,self.mean_function.get_parameters()))
+        return torch.stack((self._lengthscale,self.signal_stddev,self.noise_stddev)), self.mean_function.get_parameters()
         
     def clear_data(self):
+        """
+        Method to clear internal data and reset the model
+        """
         self.training_mat = (self.noise_stddev/self.signal_stddev)*torch.eye(self.n_frequencies*2) # Cholesky
         self.training_vec = torch.zeros((self.n_frequencies*2,1))
         self._update_weights()
+        self.X = None
+        self.Y = None
 
     def feature_transform(self,X):
+        """
+        Method to compute the feature map for a given query point.
+        
+        Parameters:
+            X (torch.Tensor): A N-by-D matrix with N rows of query points, each with D dimensions, which should match the model's dimensionality.
+            
+        Returns:
+            torch.Tensor: A M-by-N matrix of Fourier cossine-sine features, where M is twice the number of frequencies and N is the number of query points.
+        """
         return self.signal_stddev*cos_sin(X,self.spec)
     
     def updated_training_mat(self,feature):
+        """
+        Method to compute the updated Cholesky factor of the GP training matrix without performing the internal update, useful to estimate information gain.
+        
+        Parameters:
+            feature (torch.Tensor): The feature map of the new data point to include.
+            
+        Returns:
+            torch.Tensor: A M-by-M upper triangular matrix corresponding to the updated Cholesky factor.
+        """
         return torch.qr(torch.cat((self.training_mat,feature.t()),dim=0))[1]
 
     def _update_dataset(self,x,y):
+        """
+        Method used internally to update the GP dataset with a single data point.
+        """
         if self.X is None:
             self.X = x
         else:
@@ -114,6 +188,13 @@ class ISSGPR(object):
             self.Y = torch.cat((self.Y,torch.full((1,1),y.item())),dim=0)
 
     def update(self,x,y):
+        """
+        Method to perform incremental update of the GP using a single observation pair.
+        
+        Parameters:
+            x (torch.Tensor): Single data point, formatted as a row vector.
+            y (torch.Tensor): Single observation value, formatted as a scalar.
+        """
         assert x.dim() == 2, "Data point should be a row vector"
         assert y.dim() == 0, "Observation value should be a scalar"
         phi_t = self.feature_transform(x)
@@ -123,9 +204,19 @@ class ISSGPR(object):
         self._update_dataset(x,y)
         
     def _update_weights(self):
+        """
+        Method internally used to update GP weights' posterior mean
+        """
         self.weights_train = torch.cholesky_solve(self.training_vec,self.training_mat,upper=True) # not to be confused with BLR weights sample
     
     def set_data(self,X_all,Y_all):
+        """
+        Method to set the GP observations data all at once.
+        
+        Parameters:
+            X_all (torch.Tensor): A N-by-D matrix of D-dimensional query points
+            Y_all (torch.Tensor): A N-by-1 matrix of observation values
+        """
         assert Y_all.dim() == 2 and X_all.dim() == 2, "Invalid data tensor dimensions. Both X and Y should be matrices."
         features = self.feature_transform(X_all)
         self.training_vec = torch.matmul(features,(Y_all-self.mean_function(X_all)))
@@ -137,7 +228,13 @@ class ISSGPR(object):
         
     def evaluate_nlml(self,lengthscale,signal_stddev=None,noise_stddev=None,mean_params=None,X=None,Y=None,enforce_constraints=False,verbose=False):
         """
-        Computes the log marginal likelihood of the model's hyper-parameters with respect to the data
+        Computes the negative log marginal likelihood of the model's hyper-parameters with respect to the data
+        
+        Parameters:
+            lengthscale (float or torch.Tensor): Length-scale of the GP kernel.
+            signal_stddev (float or torch.Tensor): Signal standard deviation, i.e. a multiplicative scaling factor for the feature maps. If None, current value is used. (default: None)
+            noise_stddev (float or torch.Tensor): Standard deviation for the Gaussian observation noise model. If None, current value is used. (default: None)
+            mean_params: Parameters passed on to the mean function. If None, current value is used. (default: None)
         """
         if signal_stddev is None:
             signal_stddev = self.signal_stddev
@@ -173,6 +270,15 @@ class ISSGPR(object):
         return -lml
         
     def predict(self,X_test):
+        """
+        GP inference method.
+        
+        Parameters:
+            X_test (torch.Tensor): A N-by-D matrix of D-dimensional query points
+            
+        Returns:
+            tuple: A tuple of tensors containing the predictions' mean vector followed by the predictions' covariance matrix
+        """
         phi_test = self.feature_transform(X_test)
         prior_mean = self.mean_function(X_test)
         mean_test = prior_mean + torch.matmul(phi_test.t(),self.weights_train)
