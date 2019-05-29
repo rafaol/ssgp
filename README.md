@@ -14,7 +14,7 @@ A project implementing sparse spectrum Gaussian process regression using PyTorch
 
 1. Clone git repository
 ```
-git clone git@github.com:rafaol/ssgp.git
+git clone git@bitbucket.org:rafaol/ssgp.git
 ```
 2. Switch to repository's root directory:
 ```
