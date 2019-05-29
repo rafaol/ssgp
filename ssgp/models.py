@@ -61,11 +61,11 @@ class ISSGPR(object):
         
         perm = gh.EA_PERMS[:dim]
         self.sequencer = gh.GeneralizedHalton(perm)
-        base_freqs = util.ensure_torch(self.sequencer.get(int(n_frequencies)))
+        base_freqs = self.ensure_torch(self.sequencer.get(int(n_frequencies)))
         
         self.raw_spec = ISSGPR.kernel_samplers[kernel_type](base_freqs)
         self._set_lengthscale(lengthscale)
-        self.signal_stddev = util.ensure_torch(signal_stddev)
+        self.signal_stddev = self.ensure_torch(signal_stddev)
         self.clear_data()
         self.X = None
         self.Y = None
@@ -73,7 +73,10 @@ class ISSGPR(object):
             mean_function = mean_functions.ZeroMean()
         self.mean_function = mean_function
 
-        
+
+    def ensure_torch(self,x):
+        return util.ensure_torch(x,dtype=self.dtype)
+    
     def get_dimensionality(self):
         """
         Retrieves inputs domain dimesionality set with the constructor.
@@ -84,7 +87,7 @@ class ISSGPR(object):
         """
         Method used to internally set the kernel length-scale value. Not to be used directly externally.
         """
-        self._lengthscale = util.ensure_torch(value)
+        self._lengthscale = self.ensure_torch(value)
         self.spec = self.raw_spec/self._lengthscale
         
     def get_lengthscale(self):
@@ -97,13 +100,13 @@ class ISSGPR(object):
         """
         Method used to internally set the observation noise model standard deviation. Not to be used directly externally.
         """
-        self.noise_stddev = util.ensure_torch(value)
+        self.noise_stddev = self.ensure_torch(value)
         
     def _set_signal_stddev(self,value):
         """
         Method used to internally set the kernel signal standard deviation value. Not to be used directly externally.
         """
-        self.signal_stddev = util.ensure_torch(value)
+        self.signal_stddev = self.ensure_torch(value)
         
     def set_hyperparameters(self,lengthscale,signal_stddev=None,noise_stddev=None,mean_params=None):
         """
@@ -138,7 +141,7 @@ class ISSGPR(object):
         mean_params = self.mean_function.get_parameters()
         basic_params = torch.stack((self._lengthscale,self.signal_stddev,self.noise_stddev))
         if isinstance(mean_params,torch.Tensor):
-            return torch.stack((basic_params,mean_params))
+            return torch.cat((basic_params,mean_params.view(-1,)))
         if mean_params is not None:
             return basic_params, mean_params
         return basic_params
@@ -261,7 +264,7 @@ class ISSGPR(object):
         n_freqs = self.raw_spec.shape[0]
         n_data = Y.shape[0]
         features = signal_stddev*cos_sin(X,self.raw_spec/lengthscale)
-        Y_diff = Y-self.mean_function(X,params=mean_params)
+        Y_diff = Y-self.mean_function(X,param=mean_params)
         training_vec = torch.matmul(features,Y_diff)
         mat_A = torch.matmul(features,features.t())+(noise_stddev**2)*torch.eye(features.shape[0])
         weights_train,_ = torch.solve(training_vec,mat_A)
