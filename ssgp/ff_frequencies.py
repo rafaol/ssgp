@@ -1,4 +1,5 @@
 # Anthony's code to generate frequencies for random Fourier features of different kernels whose inverse cumulative distribution functions are analytic
+import math
 import torch
 import torch.distributions as tdists
 
