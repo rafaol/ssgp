@@ -52,7 +52,7 @@ class ISSGPR(object):
             signal_stddev (float or torch.Tensor): Signal standard deviation, i.e. a multiplicative scaling factor for the feature maps (default: 1.0)
             mean_function (ssgp.mean_functions.AbstractMeanFunction): GP prior mean function. If None, a zero-mean prior is used. (default: None)
         """
-        super(ISSGPR,self).__init__()
+        super().__init__()
         self.dtype = torch.float32
 
         self.dim = dim
@@ -150,7 +150,7 @@ class ISSGPR(object):
         """
         Method to clear internal data and reset the model
         """
-        self.training_mat = (self.noise_stddev/self.signal_stddev)*torch.eye(self.n_frequencies*2) # Cholesky
+        self.training_mat = self.noise_stddev*torch.eye(self.n_frequencies*2) # Cholesky
         self.training_vec = torch.zeros((self.n_frequencies*2,1))
         self._update_weights()
         self.X = None
