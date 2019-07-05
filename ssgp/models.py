@@ -101,12 +101,18 @@ class ISSGPR(object):
         Method used to internally set the observation noise model standard deviation. Not to be used directly externally.
         """
         self.noise_stddev = self.ensure_torch(value)
+
+    def get_noise_stddev(self):
+        return self.noise_stddev
         
     def _set_signal_stddev(self,value):
         """
         Method used to internally set the kernel signal standard deviation value. Not to be used directly externally.
         """
         self.signal_stddev = self.ensure_torch(value)
+
+    def get_signal_stddev(self):
+        return self.signal_stddev
         
     def set_hyperparameters(self,lengthscale,signal_stddev=None,noise_stddev=None,mean_params=None):
         """
