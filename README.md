@@ -24,7 +24,7 @@ cd ssgp/
 ```
 pip install -r requirements.txt
 ```
-4. Install package: 
+4. Install package in editable mode (-e option) to keep track of updates: 
 ```
-pip install .
+pip install -e .
 ```
