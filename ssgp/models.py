@@ -16,7 +16,7 @@ def cos_sin(X, S):
        Returns:
            torch.Tensor: M-by-N matrix of features for the inputs, M=2m.
     """
-    m, D = S.shape
+    m, _ = S.shape
     dot_products = torch.mm(S,X.t())
     return torch.cat((torch.cos(dot_products), torch.sin(dot_products))) / math.sqrt(m)
 
