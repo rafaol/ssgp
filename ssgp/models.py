@@ -207,8 +207,8 @@ class ISSGPR(object):
             x (torch.Tensor): Single data point, formatted as a row vector.
             y (torch.Tensor): Single observation value, formatted as a scalar.
         """
-        assert x.dim() == 2, "Data point should be a row vector"
-        assert y.dim() == 0, "Observation value should be a scalar"
+        util.check_exact_dim(x,2,msg="Data point should be a row vector")
+        util.check_exact_dim(y,0,msg="Observation value should be a scalar")
         phi_t = self.feature_transform(x)
         self.training_vec += phi_t*(y-self.mean_function(x).squeeze())
         self.training_mat = self.updated_training_mat(phi_t)
@@ -229,8 +229,9 @@ class ISSGPR(object):
             X_all (torch.Tensor): A N-by-D matrix of D-dimensional query points
             Y_all (torch.Tensor): A N-by-1 matrix of observation values
         """
-        assert Y_all.dim() == 2 and X_all.dim() == 2, "Invalid data tensor dimensions. Both X and Y should be matrices."
-        assert X_all.size(1) == self.get_dimensionality(), "Input data dimensionality does not match model's setting"
+        util.check_exact_dim(Y_all,2,msg="Invalid data tensor dimensions. Both X and Y should be matrices.")
+        util.check_exact_dim(X_all,2,msg="Invalid data tensor dimensions. Both X and Y should be matrices.")
+        util.check_size(X_all,self.get_dimensionality(),1,"Input data dimensionality does not match model's setting")
 
         features = self.feature_transform(X_all)
         self.training_vec = torch.matmul(features,(Y_all-self.mean_function(X_all)))
