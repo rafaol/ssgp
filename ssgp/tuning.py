@@ -56,5 +56,5 @@ class NLoptTuningObjective:
         if self.compute_grad:
             loss.backward()
             grads = [param_dict[p].grad for p in param_dict]
-            grad[:] = torch.stack(grads).numpy()
+            grad[:] = torch.stack(grads).cpu().numpy()
         return loss.item()
