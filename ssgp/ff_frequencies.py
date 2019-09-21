@@ -15,8 +15,8 @@ def normal(points, loc, scale):
     :param scale:   standard deviation
     :return:
     """
-    _loc = torch.tensor(loc)
-    _scale = torch.tensor(scale)
+    _loc = torch.tensor(loc, dtype=points.dtype, device=points.device)
+    _scale = torch.tensor(scale, dtype=points.dtype, device=points.device)
     p = tdists.Normal(loc=_loc, scale=_scale)
     return p.icdf(points)
 
@@ -27,8 +27,8 @@ def standard_normal(points):
     :param points:
     :return:
     """
-    _loc = torch.tensor(0.0)
-    _scale = torch.tensor(1.0)
+    _loc = torch.tensor(0.0, dtype=points.dtype, device=points.device)
+    _scale = torch.tensor(1.0, dtype=points.dtype, device=points.device)
     p = tdists.Normal(loc=_loc, scale=_scale)
     return p.icdf(points)
 
