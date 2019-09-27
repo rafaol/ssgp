@@ -16,9 +16,9 @@ def cos_sin(X, S):
        Returns:
            torch.Tensor: M-by-N matrix of features for the inputs, M=2m.
     """
-    m, _ = S.shape
-    dot_products = torch.mm(S, X.t())
-    return torch.cat((torch.cos(dot_products), torch.sin(dot_products))) / math.sqrt(m)
+    m = S.shape[-2]
+    dot_products = torch.matmul(S, X.t())
+    return torch.cat((torch.cos(dot_products), torch.sin(dot_products)), dim=-2) / math.sqrt(m)
 
 
 class ISSGPR(object):
@@ -339,3 +339,9 @@ class ISSGPR(object):
                                                                                   upper=True))
 
         return mean_test, covar_test
+
+    def prior_with_hyperparameters(self, X_test, lengthscale, signal_stddev, mean_params):
+        features = signal_stddev*cos_sin(X_test, self.raw_spec/lengthscale)
+        prior_mean = self.mean_function(X_test, param=mean_params)
+        prior_cov = torch.matmul(features.transpose(-2, -1), features)
+        return prior_mean, prior_cov
