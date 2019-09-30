@@ -74,8 +74,8 @@ class ISSGPR(object):
         self.noise_stddev = self.ensure_torch(noise_stddev)
 
         perm = gh.EA_PERMS[:dim]
-        self.sequencer = gh.GeneralizedHalton(perm)
-        base_freqs = self.ensure_torch(self.sequencer.get(int(n_frequencies)))
+        sequencer = gh.GeneralizedHalton(perm)
+        base_freqs = self.ensure_torch(sequencer.get(int(n_frequencies)))
 
         self.raw_spec = ISSGPR.kernel_samplers[kernel_type](base_freqs)
         self._set_lengthscale(lengthscale)
