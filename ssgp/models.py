@@ -233,10 +233,10 @@ class ISSGPR(object):
             x (torch.Tensor): Single data point, formatted as a row vector.
             y (torch.Tensor): Single observation value, formatted as a scalar.
         """
-        util.check_exact_dim(x, 2, msg="Data point should be a row vector")
-        util.check_exact_dim(y, 0, msg="Observation value should be a scalar")
+        # util.check_exact_dim(x, 2, msg="Data point should be a row vector")
+        # util.check_exact_dim(y, 0, msg="Observation value should be a scalar")
         phi_t = self.feature_transform(x)
-        self.training_vec += phi_t * (y - self.mean_function(x).squeeze())
+        self.training_vec += phi_t @ (y.view(-1, 1) - self.mean_function(x))
         self.training_mat = self.updated_training_mat(phi_t)
         self._update_weights()
         self._update_dataset(x, y)
