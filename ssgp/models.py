@@ -100,7 +100,7 @@ class ISSGPR(object):
         """
         Method used to internally set the kernel length-scale value. Not to be used directly externally.
         """
-        self._lengthscale = self.ensure_torch(value)
+        self._lengthscale = self.ensure_torch(value).expand(self.dim)
         self.spec = self.raw_spec / self._lengthscale
 
     def get_lengthscale(self):
@@ -166,11 +166,11 @@ class ISSGPR(object):
             parameters in separate.
         """
         mean_params = self.mean_function.get_parameters()
-        basic_params = torch.stack((self._lengthscale, self.signal_stddev, self.noise_stddev))
+        basic_params = torch.stack((self.get_signal_stddev(), self.get_noise_stddev()))
         if isinstance(mean_params, torch.Tensor):
-            return torch.cat((basic_params, mean_params.view(-1)))
+            return torch.cat((self.get_lengthscale().view(-1), basic_params, mean_params.view(-1)))
         if mean_params is not None:
-            return basic_params, mean_params
+            return self.get_lengthscale(), basic_params, mean_params
         return basic_params
 
     def clear_data(self):
