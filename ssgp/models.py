@@ -262,7 +262,9 @@ class ISSGPR(object):
 
         features = self.feature_transform(X_all)
         self.training_vec = torch.matmul(features, (Y_all - self.mean_function(X_all)))
-        mat_A = torch.matmul(features, features.t()) + (self.noise_stddev ** 2) * torch.eye(features.size(0))
+        mat_A = torch.matmul(features, features.t()) + (self.noise_stddev ** 2) * torch.eye(features.size(0),
+                                                                                            dtype=self.dtype,
+                                                                                            device=self.device)
         self.training_mat = torch.cholesky(mat_A, upper=True)
         self._update_weights()
         self.X = X_all
