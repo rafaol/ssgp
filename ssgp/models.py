@@ -166,11 +166,13 @@ class ISSGPR(object):
             parameters in separate.
         """
         mean_params = self.mean_function.get_parameters()
-        basic_params = torch.stack((self.get_signal_stddev(), self.get_noise_stddev()))
+        basic_params = torch.cat([self.get_lengthscale().view(-1),
+                                  self.get_signal_stddev().view(-1),
+                                  self.get_noise_stddev().view(-1)])
         if isinstance(mean_params, torch.Tensor):
-            return torch.cat((self.get_lengthscale().view(-1), basic_params, mean_params.view(-1)))
+            return torch.cat([basic_params, mean_params.view(-1)])
         if mean_params is not None:
-            return self.get_lengthscale(), basic_params, mean_params
+            return basic_params, mean_params
         return basic_params
 
     def clear_data(self):
@@ -322,7 +324,7 @@ class ISSGPR(object):
             2 * math.pi * noise_stddev ** 2)
         return -lml
 
-    def predict(self, X_test):
+    def predict(self, X_test, compute_cov=True):
         """
         GP inference method.
         
@@ -336,14 +338,16 @@ class ISSGPR(object):
         phi_test = self.feature_transform(X_test)
         prior_mean = self.mean_function(X_test)
         mean_test = prior_mean + torch.matmul(phi_test.t(), self.weights_train)
-        covar_test = (self.noise_stddev ** 2) * torch.matmul(phi_test.t(),
-                                                             torch.cholesky_solve(phi_test, self.training_mat,
-                                                                                  upper=True))
+        covar_test = None
+        if compute_cov:
+            covar_test = (self.noise_stddev ** 2) * torch.matmul(phi_test.t(),
+                                                                 torch.cholesky_solve(phi_test, self.training_mat,
+                                                                                      upper=True))
 
         return mean_test, covar_test
 
     def prior_with_hyperparameters(self, X_test, lengthscale, signal_stddev, mean_params):
-        features = signal_stddev*cos_sin(X_test, self.raw_spec/lengthscale)
+        features = signal_stddev * cos_sin(X_test, self.raw_spec / lengthscale)
         prior_mean = self.mean_function(X_test, param=mean_params)
         prior_cov = torch.matmul(features.transpose(-2, -1), features)
         return prior_mean, prior_cov
