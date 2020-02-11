@@ -9,7 +9,7 @@ from . import util
 # Abstract base class for mean functions
 class AbstractMeanFunction(metaclass=ABCMeta):
     # The constructor initializes the parameters
-    def __init__(self, param=None, dtype=torch.float32, device=None):
+    def __init__(self, param=None, dtype=None, device=None):
         self.dtype = dtype
         self.device = device
         self.set_parameters(param)
@@ -31,7 +31,7 @@ class AbstractMeanFunction(metaclass=ABCMeta):
 
 
 class ZeroMean(AbstractMeanFunction):
-    def __init__(self, dtype=torch.float32, device=None):
+    def __init__(self, dtype=None, device=None):
         super().__init__(dtype=dtype, device=device)
 
     def __call__(self, x, param=None):
@@ -39,7 +39,7 @@ class ZeroMean(AbstractMeanFunction):
 
 
 class ConstantMean(AbstractMeanFunction):
-    def __init__(self, constant, dtype=torch.float32, device=None):
+    def __init__(self, constant, dtype=None, device=None):
         super().__init__(constant, dtype=dtype, device=device)
 
     def set_parameters(self, param):
